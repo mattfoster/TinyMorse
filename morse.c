@@ -82,17 +82,9 @@ void send_space(int spaces) {
 // Text mode
 int send_letter(morseSymbol symbol) {
 
-    fprintf(
-            stderr,
-            "symbol: %c %d, %d\n",
-            symbol.symbol, symbol.bits, symbol.length
-           );
-
     unsigned int mask = 0x01 << (symbol.length - 1);
 
     for (unsigned int ii = 0; ii < symbol.length; ii++) {
-
-        fprintf(stderr, "%d: mask: %d\n", ii, mask);
 
         if ((symbol.bits & mask) == mask) {
             send_dit();
@@ -101,12 +93,13 @@ int send_letter(morseSymbol symbol) {
             send_dah();
         }
 
+        // The space between dits and dahs
         send_space(1);
 
         mask = mask >> 1;
     }
 
-    // three unit spaces here. maybe followed by another 4
+    // three unit spaces between letters
     send_space(2);
 
     return 0;
