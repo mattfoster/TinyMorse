@@ -4,28 +4,39 @@
 
 #define F_CPU 1000000UL  /* 1 MHz Internal Oscillator */
 
-#include <avr/io.h>
 #include <util/delay.h>
 #include <avr/pgmspace.h>
 
-#define LED1_PIN PB4 
-#define LED2_PIN PB0 
+#define OUTPUT_PIN PB4 
+#define LED_PIN PB0 
 #define UNIT_LENGTH 200
 #define TOTAL_SYMBOLS 38 
 
 void led_on()
 {
-    PORTB |= _BV(LED1_PIN);
+    PORTB |= _BV(LED_PIN);
 }
 
 void led_off()
 {
-    PORTB &= ~_BV(LED1_PIN);
+    PORTB &= ~_BV(LED_PIN);
+}
+
+
+void output_on()
+{
+    PORTB |= _BV(OUTPUT_PIN);
+}
+
+void output_off()
+{
+    PORTB &= ~_BV(OUTPUT_PIN);
 }
 
 void init()
 {
-    DDRB |= _BV(LED1_PIN);
+    DDRB |= _BV(OUTPUT_PIN);
+    DDRB |= _BV(LED_PIN);
 }
 
 typedef struct morseSymbol morseSymbol;
@@ -93,17 +104,17 @@ const morseSymbol * struct_for_symbol(char symbol) {
 }
 
 void send_dit() {
-    led_on();
+    output_on();
     _delay_ms(UNIT_LENGTH);
-    led_off();
+    output_off();
 }
 
 void send_dah() {
-    led_on();
+    output_on();
     _delay_ms(UNIT_LENGTH);
     _delay_ms(UNIT_LENGTH);
     _delay_ms(UNIT_LENGTH);
-    led_off();
+    output_off();
 }
 
 void send_space(unsigned char spaces) {
@@ -164,7 +175,11 @@ void send_message(const char message[], uint8_t len) {
 int main() {
     init();
 
+    led_on();
+
     static const char message[] PROGMEM = "MATT M0PUH";
     send_message(message, 10);
+
+    led_off();
     return 0;
 }
