@@ -1,15 +1,42 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#define F_CPU 1000000UL  /* 1 MHz Internal Oscillator */
+
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/pgmspace.h>
+
+#define LED1_PIN PB4 
+#define LED2_PIN PB0 
+#define UNIT_LENGTH 200
+#define TOTAL_SYMBOLS 38 
+
+void led_on()
+{
+    PORTB |= _BV(LED1_PIN);
+}
+
+void led_off()
+{
+    PORTB &= ~_BV(LED1_PIN);
+}
+
+void init()
+{
+    DDRB |= _BV(LED1_PIN);
+}
 
 typedef struct morseSymbol morseSymbol;
 
 struct morseSymbol {
     char symbol;
-    unsigned int length;
-    unsigned int bits;
+    uint8_t length;
+    uint8_t bits;
 };
 
-struct morseSymbol letters[] = {
+const struct morseSymbol letters[TOTAL_SYMBOLS] PROGMEM = {
     { 'A', 2, 0b10   },
     { 'B', 4, 0b0111 },
     { 'C', 4, 0b0101 }, 
@@ -51,42 +78,50 @@ struct morseSymbol letters[] = {
 
     { ' ', 3, 0b000  },
 };
-
 // Return the struct for a given symbol
-morseSymbol struct_for_symbol(char symbol) {
-    unsigned int length = sizeof(letters)/sizeof(letters[0]);
+const morseSymbol * struct_for_symbol(char symbol) {
+    unsigned int length = TOTAL_SYMBOLS;
+    const morseSymbol *table_symbol;
     for (unsigned int ii = 0; ii < length; ii++) {
-       if ( letters[ii].symbol == symbol ) {
-           return letters[ii];
-       }
-   }
+        table_symbol = &(letters[ii]);
+        if (pgm_read_byte(&(table_symbol->symbol)) == symbol ) {
+            return table_symbol;
+        }
+    }
 
-   return letters[length-1];
+    return &(letters[10]);
 }
 
 void send_dit() {
-    printf(".");
+    led_on();
+    _delay_ms(UNIT_LENGTH);
+    led_off();
 }
 
 void send_dah() {
-    printf("_");
+    led_on();
+    _delay_ms(UNIT_LENGTH);
+    _delay_ms(UNIT_LENGTH);
+    _delay_ms(UNIT_LENGTH);
+    led_off();
 }
 
-void send_space(int spaces) {
+void send_space(unsigned char spaces) {
     for (int ii = 0; ii < spaces; ii++) { 
-        printf("/");
+        // Wants a compile time constant
+        _delay_ms(UNIT_LENGTH);
     }
 }
 
 // Loop through the bits, and print dits and daaahs
 // Text mode
-int send_letter(morseSymbol symbol) {
+uint8_t send_letter(uint8_t length, uint8_t bits) {
 
-    unsigned int mask = 0x01 << (symbol.length - 1);
+    unsigned int mask = 0x01 << (length - 1);
 
-    for (unsigned int ii = 0; ii < symbol.length; ii++) {
+    for (unsigned int ii = 0; ii < length; ii++) {
 
-        if ((symbol.bits & mask) == mask) {
+        if ((bits & mask) == mask) {
             send_dit();
         }
         else {
@@ -105,21 +140,31 @@ int send_letter(morseSymbol symbol) {
     return 0;
 }
 
-int main() {
+void send_message(const char message[], uint8_t len) {
 
-    char message[] = "MATT M0PUH";
-    int len = strlen(message);
+    const morseSymbol *letter;
 
     for(int ii = 0; ii < len; ii++) {
-        if (message[ii] == ' ') {
+        char str = pgm_read_byte(&(message[ii]));
+        if (str == ' ') {
             // space between words is an extra 4 spaces.
             send_space(4);
         }
         else {
-            morseSymbol letter = struct_for_symbol(message[ii]);
-            send_letter(letter);
+            letter = struct_for_symbol(str);
+            send_letter(
+                    pgm_read_byte(&(letter->length)),
+                    pgm_read_byte(&(letter->bits))
+                    );
         }
     }
+}
 
+
+int main() {
+    init();
+
+    static const char message[] PROGMEM = "MATT M0PUH";
+    send_message(message, 10);
     return 0;
 }
